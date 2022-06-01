@@ -57,29 +57,23 @@ y_clst = cd_clst * np.sin(dec_clst)
 x_gal = cd_gal * np.cos(ra_gal)
 y_gal = cd_gal * np.sin(dec_gal)
 
-
-R_clst = np.sin(clst.data['R_SNR_MAX']) * cd_clst     # radius of the cluster  _ in Mega parsec
-v_clst = (4/3) * np.pi * (R_clst**3)                  # volume of the cluster  _ in (Mega parsec)**3
+R_clst = np.sin(clst.data['R_SNR_MAX']) * cd_clst           # radius of the cluster  _ in Mega parsec
 
 
 
-##TO DO : if the galaxy is in the cluster, read the stellar mass
+# check if a galaxy is in a cluster:
 selected_galaxy= []
-
-# check if the galaxy is in the cluster
 for galaxy in range(len(y_gal)):
     for cluster in range(len(y_clst)):
         if ((x_clst[cluster] - x_gal[galaxy])**2 + (y_clst[cluster] - y_gal[galaxy])**2 + (cd_clst[cluster] - cd_gal[galaxy])**2) <= R_clst[cluster]**2:
             selected_galaxy.append(cluster)
-            print(galaxy, cluster)
-            print("distance: ", ((x_clst[cluster] - x_gal[galaxy])**2 + (y_clst[cluster] - y_gal[galaxy])**2 + (cd_clst[cluster] - cd_gal[galaxy])**2))
-            print("radius: ", R_clst[cluster]**2)
             print('Galaxy number: ', galaxy, 'in cluster number: ', cluster)
-            ##print(gal.data['Mass'][galaxy])
-            ## selected_galaxy.append(gal[galaxy])
 
-for i in range (len(selected_galaxy)):
-    print(i, selected_galaxy[i], gal.data['mass'][i])
+
+
+## to read the mass of the galaxies which are in the cluster
+#for i in range (len(selected_galaxy)):
+    #print(i, selected_galaxy[i], gal.data['mass'][i])
 
 
 
