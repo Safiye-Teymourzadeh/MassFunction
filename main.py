@@ -49,6 +49,7 @@ for i in range(len(z_clst)):
 
 
 
+
 # positions in Cartesian
 x_clst = cd_clst * np.cos(ra_clst)
 y_clst = cd_clst * np.sin(dec_clst)
@@ -63,14 +64,23 @@ v_clst = (4/3) * np.pi * (R_clst**3)                  # volume of the cluster  _
 
 
 ##TO DO : if the galaxy is in the cluster, read the stellar mass
-##selected_galaxy= []
+selected_galaxy= []
 
 # check if the galaxy is in the cluster
 for galaxy in range(len(y_gal)):
     for cluster in range(len(y_clst)):
         if ((x_clst[cluster] - x_gal[galaxy])**2 + (y_clst[cluster] - y_gal[galaxy])**2 + (cd_clst[cluster] - cd_gal[galaxy])**2) <= R_clst[cluster]**2:
+            selected_galaxy.append(cluster)
+            print(galaxy, cluster)
             print("distance: ", ((x_clst[cluster] - x_gal[galaxy])**2 + (y_clst[cluster] - y_gal[galaxy])**2 + (cd_clst[cluster] - cd_gal[galaxy])**2))
             print("radius: ", R_clst[cluster]**2)
             print('Galaxy number: ', galaxy, 'in cluster number: ', cluster)
             ##print(gal.data['Mass'][galaxy])
             ## selected_galaxy.append(gal[galaxy])
+
+for i in range (len(selected_galaxy)):
+    print(i, selected_galaxy[i], gal.data['mass'][i])
+
+
+
+
