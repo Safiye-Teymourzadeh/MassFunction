@@ -1,80 +1,69 @@
 import numpy as np
-import os
+import os, sys
 import astropy.io.fits as fits
+from astropy.table import Table
 import scipy
 import astropy.units as u
 from astropy.cosmology import FlatLambdaCDM
 import cosmolopy.distance as cd
 from astropy.constants import c
+from scipy.interpolate import interp1d
 
-#cosmoUNIT = FlatLambdaCDM(H0=67.74 * u.km / u.s / u.Mpc, omega_M_0=0.308900)
+
+# constants and units:
+cosmoUNIT = FlatLambdaCDM(H0=67.74 * u.km / u.s / u.Mpc, Om0=0.308900)
 h = 0.6774
 H0=67.74 * u.km / u.s / u.Mpc
 omega_M_0 = 0.308900
-omega_lambda_0 = 0.7
-#cosmo = cosmoUNIT
+omega_lambda_0 = 1 - 0.3089
+cosmo = cosmoUNIT
 
 
-
-clst = fits.open('/home/farnoosh/Desktop/Master_Thesis/Data/eFEDS/eFEDS_clusters_V3.2.fits')[1]
-gal  = fits.open('/home/farnoosh/Desktop/Master_Thesis/Data/GAMA/SpecObjv27.fits')[1]
-
-
-ra_clst = clst.data['RA'] * (np.pi/180)      # read the right-ascension of each cluster and convert it into radian
-ra_gal = gal.data['RA'] * (np.pi/180)        # read the right-ascension of each galaxy and convert it into radian
-
-dec_clst = clst.data['DEC'] * (np.pi/180)    # read the declination of each cluster and convert it into radian
-dec_gal = gal.data['DEC'] * (np.pi/180)      # read the declination of each galaxy and convert it into radian
-
-z_clst = clst.data['z']                      # read the redshift of each cluster
-z_gal = gal.data['Z']                        # read the redshift of each galaxy
-d_gal = gal.data['DIST']                     # read the distance to the galaxy _ in Mega parsec
+z_array = np.arange(0, 7.5, 0.001)                  # for the redshift, from now up to z=7.5 put the intervals of 0.001
+d_C = cosmo.comoving_distance(z_array)              # to find the co-moving distance with the given redshift
+dc_mpc = (d_C).value
+dc_interpolation = interp1d(z_array, dc_mpc)
 
 
-# find the co-moving distance to each galaxy with the distance of d_gal  _ in Mega parsec:
-cosmo = {'omega_M_0': 0.308900, 'omega_lambda_0': 0.7, 'h': 0.6774}
-cosmo = cd.set_omega_k_0(cosmo)
-cd_gal = []
-for i in range(len(d_gal)):
-    cd_gal.append(cd.comoving_distance_transverse(d_gal[i], **cosmo))
+# Coordinate conversion:
+def get_xyz(RARA, DECDEC, ZZZZ):
+    # from RA, DE and r => polar coordinate:
+    phi   = ( RARA   - 180 ) * np.pi / 180.
+    theta = ( DECDEC + 90 ) * np.pi / 180.
+    rr    = dc_interpolation( ZZZZ )
+    # convert polar coordinate to cartesian:
+    xx = rr * np.cos( phi   ) * np.sin( theta )
+    yy = rr * np.sin( phi   ) * np.sin( theta )
+    zz = rr * np.cos( theta )
+    return np.array(list(xx)), np.array(list(yy)), np.array(list(zz))
 
 
+clu = fits.open('/home/farnoosh/Desktop/Master_Thesis/Data/eFEDS/eFEDS_clusters_V3.2.fits')[1].data
+gal  = fits.open('/home/farnoosh/Desktop/Master_Thesis/Data/GAMA/SpecObjv27.fits')[1].data
 
-# find the co-moving distance to the center of each cluster using its redshift_ in Mega parsec:
-cosmo = {'omega_M_0': 0.308900, 'omega_lambda_0': 0.7, 'h': 0.6774}
-cosmo = cd.set_omega_k_0(cosmo)
-cd_clst = []
-for i in range(len(z_clst)):
-    cd_clst.append(cd.comoving_distance_transverse(z_clst[i], **cosmo))
+g_ok = (gal['NQ']>2) & (gal['Z']>0.1) & (gal['Z']<0.3)          # only use the galaxies that are fine (NQ:normalized redshift quality)
+GAL = Table(gal[g_ok])
 
 
+c_ok = (clu['z']>0.12) & (clu['z']<0.28)                        # only use the clusters that are fine
+CLU = Table(clu[c_ok])
+print('files are opened')
+print(len(GAL), 'galaxies')
+print(CLU, 'clusters')
+print(len(CLU), 'clusters')
 
+x_C, y_C, z_C = get_xyz( CLU['RA'],  CLU['DEC'], CLU['z'])
+x_G, y_G, z_G = get_xyz( GAL['RA'],  GAL['DEC'], GAL['Z'])
 
-# positions in Cartesian
-x_clst = cd_clst * np.cos(ra_clst)
-y_clst = cd_clst * np.sin(dec_clst)
+from sklearn.neighbors import BallTree
+coord_cat_C = np.transpose([x_C, y_C, z_C])
+coord_cat_G = np.transpose([x_G, y_G, z_G])
+tree_G = BallTree(coord_cat_G)
+tree_C = BallTree(coord_cat_C)
 
-x_gal = cd_gal * np.cos(ra_gal)
-y_gal = cd_gal * np.sin(dec_gal)
+Q1, D1 = tree_G.query_radius(coord_cat_C, r=1, return_distance = True)
 
-R_clst = np.sin(clst.data['R_SNR_MAX']) * cd_clst           # radius of the cluster  _ in Mega parsec
+GiC = GAL[np.hstack((Q1))]                          # galaxies in the cluster
+print('galaxies in the cluster',GiC)
 
-
-
-# check if a galaxy is in a cluster:
-selected_galaxy= []
-for galaxy in range(len(y_gal)):
-    for cluster in range(len(y_clst)):
-        if ((x_clst[cluster] - x_gal[galaxy])**2 + (y_clst[cluster] - y_gal[galaxy])**2 + (cd_clst[cluster] - cd_gal[galaxy])**2) <= R_clst[cluster]**2:
-            selected_galaxy.append(cluster)
-            print('Galaxy number: ', galaxy, 'in cluster number: ', cluster)
-
-
-
-## to read the mass of the galaxies which are in the cluster
-#for i in range (len(selected_galaxy)):
-    #print(i, selected_galaxy[i], gal.data['mass'][i])
-
-
-
-
+# histogram of stellar mss and magnitudes or fluxes
