@@ -48,9 +48,9 @@ GAL = Table(gal[g_ok])
 c_ok = (clu['z']>0.12) & (clu['z']<0.28)                        # only use the clusters that are fine
 CLU = Table(clu[c_ok])
 print('files are opened')
-print(len(GAL), 'galaxies')
+print(len(GAL), 'number of acceptable galaxies')
 print(CLU, 'clusters')
-print(len(CLU), 'clusters')
+print(len(CLU), 'number of acceptable clusters')
 
 x_C, y_C, z_C = get_xyz( CLU['RA'],  CLU['DEC'], CLU['z'])
 x_G, y_G, z_G = get_xyz( GAL['RA'],  GAL['DEC'], GAL['Z'])
@@ -64,6 +64,14 @@ tree_C = BallTree(coord_cat_C)
 Q1, D1 = tree_G.query_radius(coord_cat_C, r=1, return_distance = True)
 
 GiC = GAL[np.hstack((Q1))]                          # galaxies in the cluster
-print('galaxies in the cluster',GiC)
+print('galaxies in the cluster, CatID:',GiC)
 
 # histogram of stellar mss and magnitudes or fluxes
+gkv = "/home/farnoosh/Desktop/Master_Thesis/Data/GAMA"
+p2_IN = os.path.join(gkv, 'gkvScienceCatv02_mask_stellarMass.fits')
+GAMA    = Table.read(p2_IN)
+print('GAMA length',len(GAMA))                   # works
+
+z_sel = ( GAMA['logmstar']>0 ) & (GAMA['Z']> Z_min) & (GAMA['Z']< Z_max) & (GAMA['SC']>=7) & (GAMA['NQ']>2) & ( GAMA['duplicate']==False ) & ( GAMA['mask']==False ) & ( GAMA['starmask']==False ) & ( GAMA['Tycho20Vmag10']==False ) & ( GAMA['Tycho210Vmag11'] == False ) & ( GAMA['Tycho211Vmag115']==False )& ( GAMA['Tycho2115Vmag12']==False )
+GAMA = GAMA[z_sel]
+print('this many' ,len(GAMA), 'of galaxies with the redshift between ', Z_min, Z_max, 'and stellar mass >0')
