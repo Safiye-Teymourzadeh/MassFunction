@@ -35,13 +35,12 @@ def get_xyz(RARA, DECDEC, ZZZZ):
 
 
 
-        #print(len(RA), 'length RA in clustr')
+clu = fits.open('/home/safiye/safiye/data1/eFEDS/efeds_clusters_full_20210814.fits')[1].data           # read the cluster catalogue
+GAMA  = fits.open('/home/safiye/safiye/data1/GAMA/gkvScienceCatv02_mask_stellarMass.fits')[1].data     # read th galaxy catalogue
+print('files are opened')
+
 Z_min = 0.1
 Z_max = 0.3
-clu = fits.open('/home/safiye/safiye/data1/eFEDS/efeds_clusters_full_20210814.fits')[1].data           # read the cluster catalogue
-#print(len(RA), 'number of the clusters in the catalogue')
-GAMA  = fits.open('/home/safiye/safiye/data1/GAMA/gkvScienceCatv02_mask_stellarMass.fits')[1].data     # read th galaxy catalogue
-
 # properties of galaxies that we want:
 #        |mass of the star      |with the redshift    |and a redshift     |sience sample     |normalized                                     |the object is inside
 #        |must be bigger than   |of bigger than 0.1   |smaller than 0.3   |better than 7     |redshift                                       |of the GAMA survey
@@ -54,14 +53,15 @@ GAL = Table(GAMA[z_sel])
 # properties of clusters that we want:
 c_ok = (clu['z_final']>0.12) & (clu['z_final']<0.28)
 CLU = Table(clu[c_ok])
-print('files are opened')       #just to check that files are opened
-print(len(GAL), 'number of acceptable galaxies')
-print(len(CLU), 'number of acceptable clusters')
+print('number of acceptable galaxies:', len(GAL))
+print('number of acceptable clusters:', len(CLU))
 
 
-# get the position of the objects in cartesian coordinate and with the radius of = redshift
+# get the position of the objects in cartesian coordinate and with the radius of redshift*CoMovingDistance
 x_C, y_C, z_C = get_xyz( CLU['RA'],  CLU['DEC'], CLU['z_final'])
 x_G, y_G, z_G = get_xyz( GAL['RAcen'],  GAL['Deccen'], GAL['Z'])
+dist_C = [abs(ele) for ele in z_C]
+dist_G = [abs(ele) for ele in z_G]
 
 from sklearn.neighbors import BallTree
 coord_cat_C = np.transpose([x_C, y_C, z_C]) #attach kon the coordinate of the clusters (Cartesian)
@@ -69,23 +69,20 @@ coord_cat_G = np.transpose([x_G, y_G, z_G])
 tree_G = BallTree(coord_cat_G)
 tree_C = BallTree(coord_cat_C)
 
-
 #if the different distance between the galaxy and the radius of the cluster is less than 1 mega parsec then is is accepted
 Q1, D1 = tree_G.query_radius(coord_cat_C, r=1, return_distance = True)
 
-
 #galaxies that Are in the cluster:
 GiC = GAL[np.hstack((Q1))]
-print('number of the galaxies that are in the clusters: ',len(GiC))
 
-
+#define mass bins in Logarithm of (M_star / M_sun)
 mbins = np.arange(8,12,0.1)
+
 x_hist = mbins[:-1]+0.1/2
-#print("x_hist",x_hist)
 H1 = np.histogram(GAL['logmstar'], bins=mbins)[0]
-print("H1: galaxy catalouge =", H1)
-print('Total number of the acceptable galaxies:', sum(H1))
-plt.title("H1, log_m(star) in the galaxy catalogue")
+#print("H1: galaxy catalouge =", H1)
+print('Total number of the Glaxies from sum(H1):', sum(H1))
+plt.title("H1, Log(M/$M_{\odot}$ in the galaxy catalogue")
 plt.hist(GAL['logmstar'], bins=mbins, color="slateblue", edgecolor="darkslateblue")[0]
 plt.xlabel("Log(M/$M_{\odot}$’)")
 plt.ylabel("Number of galaxies")
@@ -93,8 +90,8 @@ plt.show()
 
 
 H2 = np.histogram(GiC['logmstar'], bins=mbins)[0]
-print("H2", H2)
-print('Total number of galaxies that are in the clustrs:', sum(H2))
+#print("H2", H2)
+print('Total number of galaxies that are in the clustrs, sum(H2)):',sum(H2))
 plt.title("H2: number of galaxies in the clustrs")
 plt.hist(GiC['logmstar'], bins=mbins, color="turquoise", edgecolor="teal")[0]
 plt.xlabel("Log(M/$M_{\odot}$’)")
@@ -102,11 +99,31 @@ plt.ylabel("N_ gal in clstr")
 plt.show()
 
 # compute volumes
-#v1 =
-#v2 =
+v1 = 4/3* np.pi * (np.array(dist_G))**3
+print("number of the galaxies, for volume:", len(v1))
+print('Total number of the Glaxies from sum(H1):', sum(H1))
+
+v2= 4/3* np.pi * (np.array(dist_C))**3
+print("number of the clusters, for volume:", len(v2))
+print('Total number of galaxies that are in the clustrs, sum(H2)):',sum(H2))
+
 
 # Vmax
 
-# figure showing H1/volume vs x_hist and same for H2
+# figure showing H1/volume vs x_hist
+H1_V = H1 / v1
+plt.title(" H1/volume vs x_hist")
+plt.hist(H1_V,x_hist, color="yellowgreen", edgecolor="olivedrab")[0]
+plt.xlabel("Log(M/$M_{\odot}$’)")
+plt.ylabel(" H1/volume")
+plt.show()
 
+
+
+
+
+
+
+
+# figure showing H2/volume vs x_hist
 # histogram of stellar mss and magnitudes or fluxes
