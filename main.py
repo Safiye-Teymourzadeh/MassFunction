@@ -98,11 +98,7 @@ GAMA  = fits.open('/home/safiye/safiye/data1/GAMA/gkvScienceCatv02_mask_stellarM
 print('files are opened')
 
 Z_min = 0.1
-Z_max = 0.3
-# properties of galaxies that we want:
-#        |mass of the star      |with the redshift    |and a redshift     |sience sample     |normalized                                     |the object is inside
-#        |must be bigger than   |of bigger than 0.1   |smaller than 0.3   |better than 7     |redshift                                       |of the GAMA survey
-#        |mass of the sun                                                                    |quality
+Z_max = 0.3                                                                |quality
 z_sel = ( GAMA['logmstar']>0 ) & (GAMA['Z']> Z_min) & (GAMA['Z']< Z_max) & (GAMA['SC']>=7) & (GAMA['NQ']>2) & ( GAMA['duplicate']==False ) & ( GAMA['mask']==False ) & ( GAMA['starmask']==False ) & ( GAMA['Tycho20Vmag10']==False ) & ( GAMA['Tycho210Vmag11'] == False ) & ( GAMA['Tycho211Vmag115']==False )& ( GAMA['Tycho2115Vmag12']==False )
 
 f_sky = 60/(129600/np.pi)
@@ -157,11 +153,6 @@ plt.legend()
 plt.savefig('stellar_mass_histogram.png')
 plt.clf()
 
-#print("H2", H2)
-#plt.title("H2: number of galaxies in the clustrs")
-#plt.xlabel("Log(M/$M_{\odot}$’)")
-#plt.ylabel("N_ gal in clstr")
-#plt.show()
 
 # compute volumes
 # Eq.2 of Driver et al. 2022
@@ -181,15 +172,6 @@ v_C = 4/3* np.pi * (y_D22(GiC['logmstar']))**3
 Hv_G = np.histogram(GAL['logmstar'], bins=mbins, weights = np.ones_like(GAL['logmstar'])/total_volume_G.value)[0]
 Hv_C = np.histogram(GiC['logmstar'], bins=mbins, weights = np.ones_like(GiC['logmstar'])/total_volume_C.value)[0]
 
-#v_G = 4/3* np.pi * (np.array(dist_G))**3
-#print("number of the galaxies, for volume:", len(v_G))
-#print('Total number of the Glaxies from sum(H1):', sum(H1))
-
-#v_C= 4/3* np.pi * (np.array(dist_C))**3
-#print("number of the clusters, for volume:", len(v_C))
-#print('Total number of galaxies that are in the clustrs, sum(H2)):',sum(H2))
-
-
 
 # figure showing H1/volume vs x_hist
 #H1_V = H1 / v_G
@@ -201,31 +183,3 @@ plt.xlabel("Log(M/$M_{\odot}$’)")
 plt.ylabel(" H1/volume")
 plt.savefig('stellar_mass_histogram_over_volume.png')
 plt.clf()
-
-
-#
-# # figure showing H2/volume vs x_hist
-# H2_V = H2/ v_C
-# plt.title(" H1/volume vs x_hist")
-# plt.hist(H2_V,x_hist, color="yellowgreen", edgecolor="olivedrab")[0]
-# plt.xlabel("Log(M/$M_{\odot}$’)")
-# plt.ylabel(" H2/volume")
-# plt.show()
-#
-#
-#
-# # Vmax
-# # histogram of stellar mss and magnitudes or fluxes
-#
-#
-#
-#
-# plt.title("comoding dist, Log(M/$M_{\odot}$ in the galaxy catalogue")
-# plt.hist(z_G, bins=mbins, color="slateblue", edgecolor="darkslateblue")[0]
-# plt.xlabel("Log(M/$M_{\odot}$’)")
-# plt.ylabel("z_G")
-# plt.show()
-#
-#
-#
-#
