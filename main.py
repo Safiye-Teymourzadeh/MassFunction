@@ -47,60 +47,6 @@ Z_max = 0.3
 #        |mass of the sun                                                                    |quality
 z_sel = ( GAMA['logmstar']>0 ) & (GAMA['Z']> Z_min) & (GAMA['Z']< Z_max) & (GAMA['SC']>=7) & (GAMA['NQ']>2) & ( GAMA['duplicate']==False ) & ( GAMA['mask']==False ) & ( GAMA['starmask']==False ) & ( GAMA['Tycho20Vmag10']==False ) & ( GAMA['Tycho210Vmag11'] == False ) & ( GAMA['Tycho211Vmag115']==False )& ( GAMA['Tycho2115Vmag12']==False )
 
-#make a table from the aproperiate galaxies:
-GAL = Table(GAMA[z_sel])
-
-# properties of clusters that we want:
-c_ok = (clu['z_final']>0.12) & (clu['z_final']<0.28)
-CLU = Table(clu[c_ok])
-print('number of acceptable galaxies:', len(GAL))
-print('number of acceptable clusters:', len(CLU))
-
-import astropy.io.fits as fits
-import astropy.units as u
-import numpy as np
-from astropy.cosmology import FlatLambdaCDM
-from astropy.table import Table
-from matplotlib import pyplot as plt
-from scipy.interpolate import interp1d
-
-# constants and units:
-cosmoUNIT = FlatLambdaCDM(H0=67.74 * u.km / u.s / u.Mpc, Om0=0.308900)
-h = 0.6774
-H0=67.74 * u.km / u.s / u.Mpc
-Om0 = 0.308900
-omega_lambda_0 = 1 - 0.3089
-cosmo = cosmoUNIT
-
-
-z_array = np.arange(0, 7.5, 0.001)                  # for the redshift, from now up to z=7.5 put the intervals of 0.001
-d_C = cosmo.comoving_distance(z_array)              # Co-moving distance with the given redshift: between 0 and 7.5 with the intervals of 0.001)
-dc_mpc = (d_C).value                                # Co-moving distance in mega parsec
-dc_interpolation = interp1d(z_array, dc_mpc)        # find the Co-moving distance for each interval of the redshift that we defined
-
-
-# Coordinate conversion:
-def get_xyz(RARA, DECDEC, ZZZZ):
-    # from RA, DE and r => polar coordinate:
-    phi   = ( RARA   - 180 ) * np.pi / 180.
-    theta = ( DECDEC + 90 ) * np.pi / 180.
-    rr    = dc_interpolation( ZZZZ )
-    # convert polar coordinate to cartesian:
-    xx = rr * np.cos( phi   ) * np.sin( theta )
-    yy = rr * np.sin( phi   ) * np.sin( theta )
-    zz = rr * np.cos( theta )
-    return np.array(list(xx)), np.array(list(yy)), np.array(list(zz))
-
-
-
-clu = fits.open('/home/safiye/safiye/data1/eFEDS/efeds_clusters_full_20210814.fits')[1].data           # read the cluster catalogue
-GAMA  = fits.open('/home/safiye/safiye/data1/GAMA/gkvScienceCatv02_mask_stellarMass.fits')[1].data     # read th galaxy catalogue
-print('files are opened')
-
-Z_min = 0.1
-Z_max = 0.3                                                                |quality
-z_sel = ( GAMA['logmstar']>0 ) & (GAMA['Z']> Z_min) & (GAMA['Z']< Z_max) & (GAMA['SC']>=7) & (GAMA['NQ']>2) & ( GAMA['duplicate']==False ) & ( GAMA['mask']==False ) & ( GAMA['starmask']==False ) & ( GAMA['Tycho20Vmag10']==False ) & ( GAMA['Tycho210Vmag11'] == False ) & ( GAMA['Tycho211Vmag115']==False )& ( GAMA['Tycho2115Vmag12']==False )
-
 f_sky = 60/(129600/np.pi)
 total_volume_G = f_sky * (cosmo.comoving_volume(Z_max) - cosmo.comoving_volume(Z_min))
 total_volume_C = f_sky * (cosmo.comoving_volume(Z_max-0.02) - cosmo.comoving_volume(Z_min+0.02))
@@ -181,5 +127,9 @@ plt.step(x_hist,  Hv_C, color="turquoise", label='in cluster')
 plt.yscale('log')
 plt.xlabel("Log(M/$M_{\odot}$’)")
 plt.ylabel(" H1/volume")
+plt.show()
 plt.savefig('stellar_mass_histogram_over_volume.png')
 plt.clf()
+
+
+
