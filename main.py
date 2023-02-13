@@ -80,7 +80,7 @@ Q1, D1 = tree_G.query_radius(coord_cat_C, r=1.7, return_distance = True)
 GiC = GAL[np.hstack((Q1))]
 
 #define mass bins in Logarithm of (M_star / M_sun)
-mbins = np.arange(8,12,0.2)
+mbins = np.arange(8,13,0.1)
 x_hist = (mbins[:-1]+mbins[1:])/2
 H1 = np.histogram(GAL['logmstar'], bins=mbins)[0]
 H2 = np.histogram(GiC['logmstar'], bins=mbins)[0]
@@ -89,19 +89,21 @@ H2 = np.histogram(GiC['logmstar'], bins=mbins)[0]
 print('Total number of the Glaxies from sum(H1):', sum(H1))
 print('Total number of galaxies that are in the clustrs, sum(H2)):',sum(H2))
 
-plt.title("H1, Log(M/$M_{\odot}$ in the galaxy catalogue")
+# Plot1:
+plt.title("Number of Galaxies and Clusters in each bin based on their mass")
 plt.hist(GAL['logmstar'], bins=mbins, color="slateblue", edgecolor="darkslateblue", label='all galaxies')[0]
 plt.hist(GiC['logmstar'], bins=mbins, color="turquoise", edgecolor="teal", label='in cluster')[0]
 plt.xlabel("Log(M/$M_{\odot}$’)")
-plt.ylabel("Number of galaxies")
+plt.ylabel("Number")
 plt.yscale('log')
 plt.legend()
+plt.show()
 plt.savefig('stellar_mass_histogram.png')
 plt.clf()
 
 
 # compute volumes
-# Eq.2 of Driver et al. 2022
+# Eq.2 of Driver et al. 2022        Y(x): Y=co-moving dist limit & x=mass limit    => co-moving distant limit of mass limit
 def y_D22(x):
     A = -0.016
     K = 2742.0
@@ -109,27 +111,44 @@ def y_D22(x):
     B = 1.1483
     M = 11.815
     nu = 1.691
-    y = A + (K-A) / ( C + np.e**( B*(x - M) ) )**(1/nu)
+    y = A + (K - A) / (C + np.e ** (B * (x - M))) ** (1 / nu)
     return y
 
-v_G = 4/3* np.pi * (y_D22(GAL['logmstar']))**3
-v_C = 4/3* np.pi * (y_D22(GiC['logmstar']))**3
 
-Hv_G = np.histogram(GAL['logmstar'], bins=mbins, weights = np.ones_like(GAL['logmstar'])/total_volume_G.value)[0]
-Hv_C = np.histogram(GiC['logmstar'], bins=mbins, weights = np.ones_like(GiC['logmstar'])/total_volume_C.value)[0]
+# volume of the galaxies (V_G) and the cluster (V_C)
+# co-moving volume of the mass limits based on their co-moving diatances
+v_G = 4 / 3 * np.pi * (y_D22(GAL['logmstar'])) ** 3
+v_C = 4 / 3 * np.pi * (y_D22(GiC['logmstar'])) ** 3
 
+# make an array of galaxy masses => then divide them to the volume of the all galaxies
+Hv_G = np.histogram(GAL['logmstar'], bins=mbins, weights=np.ones_like(GAL['logmstar']) / total_volume_G.value)[0]
+Hv_C = np.histogram(GiC['logmstar'], bins=mbins, weights=np.ones_like(GiC['logmstar']) / total_volume_C.value)[0]
 
-# figure showing H1/volume vs x_hist
-#H1_V = H1 / v_G
-plt.title(" H1/volume vs x_hist")
-plt.step(x_hist,  Hv_G, color="slateblue", label='all galaxies')
-plt.step(x_hist,  Hv_C, color="turquoise", label='in cluster')
+# Plot tw0:  H1_V = (H1 / v_G)    number density of galaxies per co-moving volume
+plt.title(" Number-Density of galaxies and clusters in each bin based on their mass")
+plt.step(x_hist, Hv_G, color="slateblue", label='all galaxies')
+plt.step(x_hist, Hv_C, color="turquoise", label='in cluster')
 plt.yscale('log')
 plt.xlabel("Log(M/$M_{\odot}$’)")
-plt.ylabel(" H1/volume")
+plt.ylabel("Number Density(Mpc^-3)")
 plt.show()
 plt.savefig('stellar_mass_histogram_over_volume.png')
 plt.clf()
 
+# Plot three: CoMoving Distance based on stellar masses
+plt.plot(GAL['logmstar'], dist_G, 'o', markersize=1)
+plt.xlabel('Stellar Mass (Log(M/$M_{\odot}$’))')
+plt.ylabel('CoMoving Distance(Mpc)')
+plt.title('CoMoving Distance vs Stellar Mass')
+plt.show()
 
 
+# Plot four: limited CoMoving Distance based on stellar masses
+plt.plot(GAL['logmstar'], np.log(dist_G), 'o', markersize=0.03)
+plt.xlabel('Stellar Mass (Log(M/$M_{\odot}$’))')
+plt.ylabel('CoMoving Distance(Mpc)')
+plt.title('CoMoving Distance vs Stellar Mass')
+plt.savefig('CoMoving Dist vs Stellar Mass.png')
+plt.xlim(8, 12)
+plt.show()
+plt.clf()
