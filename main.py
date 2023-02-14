@@ -35,12 +35,12 @@ def get_xyz(RARA, DECDEC, ZZZZ):
 
 
 
-clu = fits.open('/home/safiye/safiye/data1/eFEDS/efeds_clusters_full_20210814.fits')[1].data           # read the cluster catalogue
-GAMA  = fits.open('/home/safiye/safiye/data1/GAMA/gkvScienceCatv02_mask_stellarMass.fits')[1].data     # read th galaxy catalogue
+clu = fits.open('/home/farnoosh/farnoosh/Master_Thesis/Data/eFEDS/efeds_clusters_full_20210814.fits')[1].data           # read the cluster catalogue
+GAMA  = fits.open('/home/farnoosh/farnoosh/Master_Thesis/Data/GAMA/gkvScienceCatv02_mask_stellarMass.fits')[1].data     # read th galaxy catalogue
 print('files are opened')
 
-Z_min = 0.1
-Z_max = 0.3
+Z_min = 0.0
+Z_max = 0.1
 # properties of galaxies that we want:
 #        |mass of the star      |with the redshift    |and a redshift     |sience sample     |normalized                                     |the object is inside
 #        |must be bigger than   |of bigger than 0.1   |smaller than 0.3   |better than 7     |redshift                                       |of the GAMA survey
@@ -105,16 +105,22 @@ plt.clf()
 # compute volumes
 # Eq.2 of Driver et al. 2022        Y(x): Y=co-moving dist limit & x=mass limit    => co-moving distant limit of mass limit
 def y_D22(x):
+    """
+    Richards curve from GAMA based on Table 5, Eq. 2 from Driver et al. 2022
+    :param x: log10 of stellar mass limit
+    :return: co moving distance  in Mpc
+    """
     A = -0.016
     K = 2742.0
     C = 0.9412
     B = 1.1483
     M = 11.815
     nu = 1.691
-    y = A + (K - A) / (C + np.e ** (B * (x - M))) ** (1 / nu)
+    y = A + (K - A) / (C + np.e ** (-B * (x - M))) ** (1 / nu)
     return y
 
-
+x_array = np.arange(6,12,0.1)
+yARR = y_D22(x_array)
 # volume of the galaxies (V_G) and the cluster (V_C)
 # co-moving volume of the mass limits based on their co-moving diatances
 v_G = 4 / 3 * np.pi * (y_D22(GAL['logmstar'])) ** 3
@@ -139,7 +145,11 @@ plt.clf()
 plt.plot(GAL['logmstar'], dist_G, 'o', markersize=1)
 plt.xlabel('Stellar Mass (Log(M/$M_{\odot}$’))')
 plt.ylabel('CoMoving Distance(Mpc)')
+plt.plot(x_array, yARR, 'k--')
 plt.title('CoMoving Distance vs Stellar Mass')
+plt.savefig('CoMoving Distance vs Stellar Mass')
+plt.xlim(6,12)
+plt.ylim(0, 450)
 plt.show()
 
 
@@ -150,5 +160,6 @@ plt.ylabel('CoMoving Distance(Mpc)')
 plt.title('CoMoving Distance vs Stellar Mass')
 plt.savefig('CoMoving Dist vs Stellar Mass.png')
 plt.xlim(8, 12)
+plt.ylim(0, 450)
 plt.show()
 plt.clf()
