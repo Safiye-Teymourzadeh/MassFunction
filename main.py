@@ -5,13 +5,12 @@ from astropy.cosmology import FlatLambdaCDM
 from astropy.table import Table
 from matplotlib import pyplot as plt
 from scipy.interpolate import interp1d
+import astropy.constants as const
+
+
 
 # constants and units:
-cosmoUNIT = FlatLambdaCDM(H0=67.74 * u.km / u.s / u.Mpc, Om0=0.308900)
-h = 0.6774
-H0=67.74 * u.km / u.s / u.Mpc
-Om0 = 0.308900
-omega_lambda_0 = 1 - 0.3089
+cosmoUNIT = FlatLambdaCDM(H0=70.0 * u.km / u.s / u.Mpc, Om0=0.30)
 cosmo = cosmoUNIT
 
 
@@ -39,10 +38,14 @@ clu = fits.open('/home/farnoosh/farnoosh/Master_Thesis/Data/eFEDS/efeds_clusters
 GAMA  = fits.open('/home/farnoosh/farnoosh/Master_Thesis/Data/GAMA/gkvScienceCatv02_mask_stellarMass.fits')[1].data     # read th galaxy catalogue
 print('files are opened')
 
+
+# based on Driver et al. 2022
 Z_min = 0.0
 Z_max = 0.1
+
+
 # properties of galaxies that we want:
-#        |mass of the star      |with the redshift    |and a redshift     |sience sample     |normalized                                     |the object is inside
+#        |mass of the star      |with the redshift    |and a redshift     |science sample    |normalized                                     |the object is inside
 #        |must be bigger than   |of bigger than 0.1   |smaller than 0.3   |better than 7     |redshift                                       |of the GAMA survey
 #        |mass of the sun                                                                    |quality
 z_sel = ( GAMA['logmstar']>0 ) & (GAMA['Z']> Z_min) & (GAMA['Z']< Z_max) & (GAMA['SC']>=7) & (GAMA['NQ']>2) & ( GAMA['duplicate']==False ) & ( GAMA['mask']==False ) & ( GAMA['starmask']==False ) & ( GAMA['Tycho20Vmag10']==False ) & ( GAMA['Tycho210Vmag11'] == False ) & ( GAMA['Tycho211Vmag115']==False )& ( GAMA['Tycho2115Vmag12']==False )
@@ -50,6 +53,7 @@ z_sel = ( GAMA['logmstar']>0 ) & (GAMA['Z']> Z_min) & (GAMA['Z']< Z_max) & (GAMA
 f_sky = 60/(129600/np.pi)
 total_volume_G = f_sky * (cosmo.comoving_volume(Z_max) - cosmo.comoving_volume(Z_min))
 total_volume_C = f_sky * (cosmo.comoving_volume(Z_max-0.02) - cosmo.comoving_volume(Z_min+0.02))
+
 
 #make a table from the aproperiate galaxies:
 GAL = Table(GAMA[z_sel])
@@ -80,7 +84,7 @@ Q1, D1 = tree_G.query_radius(coord_cat_C, r=1.7, return_distance = True)
 GiC = GAL[np.hstack((Q1))]
 
 #define mass bins in Logarithm of (M_star / M_sun)
-mbins = np.arange(8,13,0.1)
+mbins = np.arange(8,12,0.1)
 x_hist = (mbins[:-1]+mbins[1:])/2
 H1 = np.histogram(GAL['logmstar'], bins=mbins)[0]
 H2 = np.histogram(GiC['logmstar'], bins=mbins)[0]
@@ -89,11 +93,17 @@ H2 = np.histogram(GiC['logmstar'], bins=mbins)[0]
 print('Total number of the Glaxies from sum(H1):', sum(H1))
 print('Total number of galaxies that are in the clustrs, sum(H2)):',sum(H2))
 
-# Plot1:
+
+
+
+
+
+
+# Plot 1:
 plt.title("Number of Galaxies and Clusters in each bin based on their mass")
-plt.hist(GAL['logmstar'], bins=mbins, color="slateblue", edgecolor="darkslateblue", label='all galaxies')[0]
-plt.hist(GiC['logmstar'], bins=mbins, color="turquoise", edgecolor="teal", label='in cluster')[0]
-plt.xlabel("Log(M/$M_{\odot}$’)")
+plt.hist(GAL['logmstar'], bins=100, color="slateblue", edgecolor="darkslateblue", label='all galaxies')[0]
+plt.hist(GiC['logmstar'], bins=30,  color="turquoise", edgecolor="teal", label='in cluster')[0]
+plt.xlabel("Log(M/$M_{\odot}$)")
 plt.ylabel("Number")
 plt.yscale('log')
 plt.legend()
@@ -102,8 +112,8 @@ plt.savefig('stellar_mass_histogram.png')
 plt.clf()
 
 
-# compute volumes
-# Eq.2 of Driver et al. 2022        Y(x): Y=co-moving dist limit & x=mass limit    => co-moving distant limit of mass limit
+
+
 def y_D22(x):
     """
     Richards curve from GAMA based on Table 5, Eq. 2 from Driver et al. 2022
@@ -119,10 +129,53 @@ def y_D22(x):
     y = A + (K - A) / (C + np.e ** (-B * (x - M))) ** (1 / nu)
     return y
 
-x_array = np.arange(6,12,0.1)
+def inverted_y_D22(y):
+    """
+    returns the inverted function of the richards curve
+    :param y: comoving distance
+    :return: log mass
+    """
+    A = -0.016
+    K = 2742.0
+    C = 0.9412
+    B = 1.1483
+    M = 11.815
+    nu = 1.691
+    fraction_part = (A - K)/(A - y)
+    logarithm_part = np.log(fraction_part**nu - C)
+    x = (B * M - logarithm_part) / B
+    return x
+
+
+def plot_adjusted_richards_curve(log_stellar_mass, logM_min, logM_max):
+    adjusted_richards_curve = np.zeros(len(log_stellar_mass))
+    for i, log_mass in enumerate(log_stellar_mass):
+        if log_mass < logM_min:
+            adjusted_richards_curve[i] = y_D22(logM_min)
+        elif log_mass > logM_max:
+            adjusted_richards_curve[i] = y_D22(logM_max)
+        else:
+            adjusted_richards_curve[i] = y_D22(log_mass)
+
+    return adjusted_richards_curve
+
+def find_logMmin_andmax(z_min, z_max):
+    comoving_min, comoving_max = cosmo.comoving_distance(z_min).value, cosmo.comoving_distance(z_max).value
+
+    logm_min, logm_max = inverted_y_D22(comoving_min), inverted_y_D22(comoving_max)
+
+    return logm_min, logm_max
+
+
+x_array = np.arange(0,12,0.1)
 yARR = y_D22(x_array)
+
+logm_min, logm_max = find_logMmin_andmax(z_min=0.0013, z_max=0.1)
+adjusted_richards = plot_adjusted_richards_curve(log_stellar_mass=x_array, logM_min=logm_min, logM_max=logm_max)
+
+
 # volume of the galaxies (V_G) and the cluster (V_C)
-# co-moving volume of the mass limits based on their co-moving diatances
+# co-moving volume of the mass limits based on their co-moving distances
 v_G = 4 / 3 * np.pi * (y_D22(GAL['logmstar'])) ** 3
 v_C = 4 / 3 * np.pi * (y_D22(GiC['logmstar'])) ** 3
 
@@ -130,36 +183,93 @@ v_C = 4 / 3 * np.pi * (y_D22(GiC['logmstar'])) ** 3
 Hv_G = np.histogram(GAL['logmstar'], bins=mbins, weights=np.ones_like(GAL['logmstar']) / total_volume_G.value)[0]
 Hv_C = np.histogram(GiC['logmstar'], bins=mbins, weights=np.ones_like(GiC['logmstar']) / total_volume_C.value)[0]
 
-# Plot tw0:  H1_V = (H1 / v_G)    number density of galaxies per co-moving volume
+
+
+
+# Plot 2:  H1_V = (H1 / v_G)    number density of galaxies per co-moving volume
 plt.title(" Number-Density of galaxies and clusters in each bin based on their mass")
 plt.step(x_hist, Hv_G, color="slateblue", label='all galaxies')
 plt.step(x_hist, Hv_C, color="turquoise", label='in cluster')
 plt.yscale('log')
-plt.xlabel("Log(M/$M_{\odot}$’)")
+plt.xlabel("Log(M/$M_{\odot}$)")
 plt.ylabel("Number Density(Mpc^-3)")
 plt.show()
 plt.savefig('stellar_mass_histogram_over_volume.png')
 plt.clf()
 
-# Plot three: CoMoving Distance based on stellar masses
+
+# Plot 3: CoMoving Distance based on stellar masses
 plt.plot(GAL['logmstar'], dist_G, 'o', markersize=1)
-plt.xlabel('Stellar Mass (Log(M/$M_{\odot}$’))')
-plt.ylabel('CoMoving Distance(Mpc)')
-plt.plot(x_array, yARR, 'k--')
-plt.title('CoMoving Distance vs Stellar Mass')
+plt.xlabel('Stellar Mass (Log(M/$M_{\odot}$)  $h_{70}^{-2}$)')
+plt.ylabel('CoMoving Distance(Mpc $h_{70}^{-1}$)')
+plt.plot(x_array, adjusted_richards, 'k--')
+plt.title('CoMoving Distance vs Stellar Mass for All Data')
+plt.xlim(0,12)
+plt.ylim(0, 450)
+plt.show()
 plt.savefig('CoMoving Distance vs Stellar Mass')
-plt.xlim(6,12)
-plt.ylim(0, 450)
-plt.show()
-
-
-# Plot four: limited CoMoving Distance based on stellar masses
-plt.plot(GAL['logmstar'], np.log(dist_G), 'o', markersize=0.03)
-plt.xlabel('Stellar Mass (Log(M/$M_{\odot}$’))')
-plt.ylabel('CoMoving Distance(Mpc)')
-plt.title('CoMoving Distance vs Stellar Mass')
-plt.savefig('CoMoving Dist vs Stellar Mass.png')
-plt.xlim(8, 12)
-plt.ylim(0, 450)
-plt.show()
 plt.clf()
+
+
+import astropy.units as u
+
+
+#Mass to Light ratio ( r_band):
+Ms_over_Msun = GAL['mstar']
+print(Ms_over_Msun[0])
+# three elements are non-positive, so we need to remove them
+mask = Ms_over_Msun <= 0
+non_positive_elements = Ms_over_Msun[mask]
+remove_indices = np.where(mask)[0]
+Ms_over_Msun_New = np.delete(Ms_over_Msun, remove_indices)
+Log_M_ratio = np.log10(Ms_over_Msun_New) # length= 23097-3 = 23094
+print(Log_M_ratio[0])
+
+#remove for comoving dist:
+CoMov = GAL['comovingdist']
+#remove_indices = [290, 11336, 13297]  # indices start from 0
+new_CoMov = np.delete(CoMov, remove_indices)
+#remove for flux:
+flux = GAL['flux_rt'] * u.Jy
+#remove_indices = [290, 11336, 13297]  # indices start from 0
+flux_r_new = np.delete(flux, remove_indices)
+
+
+#change the log**
+# for luminosity part:
+Const_4pi = np.log10((4*np.pi))
+log_co_si = np.log10(new_CoMov) + np.log10(3.08567758*10**22)
+log_flux_Si = np.log10(flux_r_new) + np.log10(10**-26)
+log_Lsun = np.log10(((3.828)*(10**26)))
+Log_Lstar = Const_4pi + 2*(log_co_si) + log_flux_Si
+
+# Log_Lum_ratio = (Log_Lstar) / (log_Lsun) # Log(Ls/Lsun)
+#
+#
+# # Plot 4:
+# plt.title("stellar Luminosity Distribution.")
+# plt.hist(Log_Lum_ratio, bins=100 , color="orange", edgecolor="red", label= "all data-3")[0]
+# plt.xlabel("Log(L/$L_{\odot}$)")
+# plt.ylabel("Number")
+# plt.legend()
+# plt.show()
+# plt.savefig('stellar_Luminosity_histogram.png')
+# plt.clf()
+#
+#
+# # Mass-to-Light ratio
+# ML_ratio = (Log_Lum_ratio)/(Log_M_ratio)
+#
+# # Plot 5:
+# plt.title("Mass-to-Light ratio.")
+# plt.hist((ML_ratio), bins=200 , color="blue", label= "all data-3")[0]
+# plt.xlabel("Log(M/L) [$M_{\odot}$/$L_{\odot}$]")
+# plt.ylabel("Number")
+# plt.legend()
+# plt.show()
+# plt.savefig('Mass-to-Light.png')
+# plt.clf()
+#
+#
+#
+#
