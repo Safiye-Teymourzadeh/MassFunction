@@ -5,18 +5,22 @@ from astropy.cosmology import FlatLambdaCDM
 from astropy.table import Table
 from matplotlib import pyplot as plt
 from scipy.interpolate import interp1d
+from sklearn.preprocessing import MinMaxScaler
 import astropy.constants as const
 
 
 
 # constants and units:
-cosmoUNIT = FlatLambdaCDM(H0=70.0 * u.km / u.s / u.Mpc, Om0=0.30)
+cosmoUNIT = FlatLambdaCDM(
+    H0=70.0 * u.km / u.s / u.Mpc,
+    Om0=0.30)
+h = 0.6777
 cosmo = cosmoUNIT
 
 
 z_array = np.arange(0, 7.5, 0.001)                  # for the redshift, from now up to z=7.5 put the intervals of 0.001
-d_C = cosmo.comoving_distance(z_array)              # Co-moving distance with the given redshift: between 0 and 7.5 with the intervals of 0.001)
-dc_mpc = (d_C).value                                # Co-moving distance in mega parsec
+d_C = cosmo.comoving_distance(z_array)              # Co-moving distance of the given intervals' redshift. IT IS NOT THE DISTANCE OF THE OBJECTS. in unit os Mpc
+dc_mpc = (d_C).value                                # Co-moving distance of the given intervals' redshift in Mega Parsec
 dc_interpolation = interp1d(z_array, dc_mpc)        # find the Co-moving distance for each interval of the redshift that we defined
 
 
@@ -34,9 +38,13 @@ def get_xyz(RARA, DECDEC, ZZZZ):
 
 
 
-clu = fits.open('/home/farnoosh/farnoosh/Master_Thesis/Data/eFEDS/efeds_clusters_full_20210814.fits')[1].data           # read the cluster catalogue
-GAMA  = fits.open('/home/farnoosh/farnoosh/Master_Thesis/Data/GAMA/gkvScienceCatv02_mask_stellarMass.fits')[1].data     # read th galaxy catalogue
+clu = fits.open('/home/farnoosh/farnoosh/Master_Thesis/Data/eFEDS/efeds_clusters_full_20210814.fits')[1].data
+GAMA  = fits.open('/home/farnoosh/farnoosh/Master_Thesis/Data/GAMA/gkvScienceCatv02_mask_stellarMass.fits')[1].data
+# PC MPE:
+# clu = fits.open('/home/safiye/safiye/data1/eFEDS/efeds_clusters_full_20210814.fits')[1].data
+# GAMA  = fits.open('/home/safiye/safiye/data1/GAMA/gkvScienceCatv02_mask_stellarMass.fits')[1].data
 print('files are opened')
+
 
 
 # based on Driver et al. 2022
@@ -65,14 +73,19 @@ print('number of acceptable galaxies:', len(GAL))
 print('number of acceptable clusters:', len(CLU))
 
 
-# get the position of the objects in cartesian coordinate and with the radius of redshift*CoMovingDistance
+# get the position of the objects in cartesian coordinate
 x_C, y_C, z_C = get_xyz( CLU['RA'],  CLU['DEC'], CLU['z_final'])
 x_G, y_G, z_G = get_xyz( GAL['RAcen'],  GAL['Deccen'], GAL['Z'])
 dist_C = (x_C**2+ y_C**2 + z_C**2)**0.5
-dist_G = (x_G**2+ y_G**2 + z_G**2)**0.5
+dist_G = (x_G**2+ y_G**2 + z_G**2)**0.5     #Euclidean distance between the position of the galaxies in Cartesian coordinate system
+
+
+# physical distance of the objects:
+
+
 
 from sklearn.neighbors import BallTree
-coord_cat_C = np.transpose([x_C, y_C, z_C]) #attach kon the coordinate of the clusters (Cartesian)
+coord_cat_C = np.transpose([x_C, y_C, z_C])
 coord_cat_G = np.transpose([x_G, y_G, z_G])
 tree_G = BallTree(coord_cat_G)
 tree_C = BallTree(coord_cat_C)
@@ -100,7 +113,7 @@ print('Total number of galaxies that are in the clustrs, sum(H2)):',sum(H2))
 
 
 # Plot 1:
-plt.title("Number of Galaxies and Clusters in each bin based on their mass")
+plt.title("1_ Number of Galaxies and Clusters in each bin based on their mass")
 plt.hist(GAL['logmstar'], bins=100, color="slateblue", edgecolor="darkslateblue", label='all galaxies')[0]
 plt.hist(GiC['logmstar'], bins=30,  color="turquoise", edgecolor="teal", label='in cluster')[0]
 plt.xlabel("Log(M/$M_{\odot}$)")
@@ -187,7 +200,7 @@ Hv_C = np.histogram(GiC['logmstar'], bins=mbins, weights=np.ones_like(GiC['logms
 
 
 # Plot 2:  H1_V = (H1 / v_G)    number density of galaxies per co-moving volume
-plt.title(" Number-Density of galaxies and clusters in each bin based on their mass")
+plt.title("2_ Number-Density of galaxies and clusters in each bin based on their mass")
 plt.step(x_hist, Hv_G, color="slateblue", label='all galaxies')
 plt.step(x_hist, Hv_C, color="turquoise", label='in cluster')
 plt.yscale('log')
@@ -203,7 +216,7 @@ plt.plot(GAL['logmstar'], dist_G, 'o', markersize=1)
 plt.xlabel('Stellar Mass (Log(M/$M_{\odot}$)  $h_{70}^{-2}$)')
 plt.ylabel('CoMoving Distance(Mpc $h_{70}^{-1}$)')
 plt.plot(x_array, adjusted_richards, 'k--')
-plt.title('CoMoving Distance vs Stellar Mass for All Data')
+plt.title('3_ CoMoving Distance vs Stellar Mass for All Data')
 plt.xlim(0,12)
 plt.ylim(0, 450)
 plt.show()
@@ -211,65 +224,62 @@ plt.savefig('CoMoving Distance vs Stellar Mass')
 plt.clf()
 
 
-import astropy.units as u
 
 
 #Mass to Light ratio ( r_band):
 Ms_over_Msun = GAL['mstar']
-print(Ms_over_Msun[0])
-# three elements are non-positive, so we need to remove them
+# three elements are non-positive, so we need to remove them, length= 23097-3 = 23094
 mask = Ms_over_Msun <= 0
 non_positive_elements = Ms_over_Msun[mask]
 remove_indices = np.where(mask)[0]
-Ms_over_Msun_New = np.delete(Ms_over_Msun, remove_indices)
-Log_M_ratio = np.log10(Ms_over_Msun_New) # length= 23097-3 = 23094
-print(Log_M_ratio[0])
+Ms_over_Msun_corrected = np.delete(Ms_over_Msun, remove_indices)
 
-#remove for comoving dist:
-CoMov = GAL['comovingdist']
-#remove_indices = [290, 11336, 13297]  # indices start from 0
-new_CoMov = np.delete(CoMov, remove_indices)
-#remove for flux:
+
 flux = GAL['flux_rt'] * u.Jy
-#remove_indices = [290, 11336, 13297]  # indices start from 0
-flux_r_new = np.delete(flux, remove_indices)
+flux_r_corrected = np.delete(flux, remove_indices)
+
+CoMov_Gal_objects = GAL['comovingdist']
+CoMov_Gal_objects_corrected = np.delete(CoMov_Gal_objects, remove_indices)
+
+Z_corrected = np.delete(GAL['Z'], remove_indices)
 
 
-#change the log**
-# for luminosity part:
-Const_4pi = np.log10((4*np.pi))
-log_co_si = np.log10(new_CoMov) + np.log10(3.08567758*10**22)
-log_flux_Si = np.log10(flux_r_new) + np.log10(10**-26)
-log_Lsun = np.log10(((3.828)*(10**26)))
-Log_Lstar = Const_4pi + 2*(log_co_si) + log_flux_Si
+# physical distance:
+d_G_physical = CoMov_Gal_objects_corrected * (1 + Z_corrected) * u.Mpc
 
-# Log_Lum_ratio = (Log_Lstar) / (log_Lsun) # Log(Ls/Lsun)
-#
-#
-# # Plot 4:
-# plt.title("stellar Luminosity Distribution.")
-# plt.hist(Log_Lum_ratio, bins=100 , color="orange", edgecolor="red", label= "all data-3")[0]
-# plt.xlabel("Log(L/$L_{\odot}$)")
-# plt.ylabel("Number")
-# plt.legend()
-# plt.show()
-# plt.savefig('stellar_Luminosity_histogram.png')
-# plt.clf()
-#
-#
-# # Mass-to-Light ratio
-# ML_ratio = (Log_Lum_ratio)/(Log_M_ratio)
-#
-# # Plot 5:
-# plt.title("Mass-to-Light ratio.")
-# plt.hist((ML_ratio), bins=200 , color="blue", label= "all data-3")[0]
-# plt.xlabel("Log(M/L) [$M_{\odot}$/$L_{\odot}$]")
-# plt.ylabel("Number")
-# plt.legend()
-# plt.show()
-# plt.savefig('Mass-to-Light.png')
-# plt.clf()
-#
-#
-#
-#
+# luminosity distance:
+d_G_Lum_corrected = cosmo.luminosity_distance(Z_corrected)
+
+# luminosity
+lum_G = 4 * np.pi * (d_G_Lum_corrected.to(u.m))**2 * (flux_r_corrected.to(u.W/u.m**2/u.Hz))*u.Hz
+lum_G_over_lSun = lum_G / const.L_sun
+
+ML_ratio_solar = np.log10 ( Ms_over_Msun_corrected / lum_G_over_lSun )
+
+
+mass_mask = Ms_over_Msun_corrected < 1e10
+Ms_over_Msun_corrected_new = Ms_over_Msun_corrected[mass_mask]
+lum_G_over_lSun_new = lum_G_over_lSun[mass_mask]
+ML_ratio_massLimitted = np.log10(Ms_over_Msun_corrected_new / lum_G_over_lSun_new)
+
+average_ML_ratio = np.mean(ML_ratio_solar)
+print("Average mass to light ratio: ", average_ML_ratio)
+
+average_ML_ratio_limitted = np.mean(ML_ratio_massLimitted)
+print("Average mass to light ratio for limitted mass: ", average_ML_ratio_limitted)
+
+
+#Plot 5:
+scaler = MinMaxScaler(feature_range=(-1, 1))
+scaled_ML = scaler.fit_transform(ML_ratio_solar.reshape(-1, 1))
+scaled_MLRlim = scaler.fit_transform(ML_ratio_massLimitted.reshape(-1, 1))
+
+plt.title("5_ Mass-to-Light ratio.")
+plt.hist(scaled_ML, bins=100 , color="green", edgecolor="blue", label= "all data-3\navg= 14.76")[0]
+plt.hist(scaled_MLRlim, bins=100,  color="pink", edgecolor="red", label='M < 10**10 $M_{\odot}$\navg= 14.68')[0]
+plt.xlabel("Log(M/L) [$M_{\odot}$/$L_{\odot}$]")
+plt.ylabel("Number")
+plt.legend()
+plt.show()
+plt.savefig('Mass-to-Light.png')
+plt.clf()
